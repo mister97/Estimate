@@ -1,0 +1,384 @@
+{% extends request.ajax ? "layout_blank.html.twig" : "layout_default.html.twig" %}
+
+{% block meta_title %}{{ 'Estimate'|trans }} {{ estimate.estimate_number }}{% endblock %}
+
+{% set active_menu = 'estimate' %}
+
+{% block breadcrumbs %}
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a href="{{ '/'|alink }}">
+                <svg class="icon">
+                    <use xlink:href="#home" />
+                </svg>
+            </a>
+        </li>
+        <li class="breadcrumb-item">
+            <a href="{{ 'estimate'|alink }}">{{ 'Estimates'|trans }}</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">{{ 'View Estimate'|trans }}</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">{{ 'Estimate'|trans }} {{ estimate.estimate_number }}</h3>
+        <div class="card-actions">
+            <a href="{{ ('estimate/pdf/' ~ estimate.id)|alink }}" class="btn btn-outline-danger" target="_blank">
+                <i class="fas fa-file-pdf"></i> {{ 'Download PDF'|trans }}
+            </a>
+            {% if estimate.status != 'converted' %}
+            <a href="{{ ('estimate/edit/' ~ estimate.id)|alink }}" class="btn btn-outline-primary">
+                <i class="fas fa-edit"></i> {{ 'Edit'|trans }}
+            </a>
+            {% endif %}
+            
+            <!-- Delete button for draft or rejected estimates -->
+            {% if estimate.status in ['draft', 'rejected'] %}
+            <button class="btn btn-outline-danger" onclick="deleteEstimate({{ estimate.id }}, '{{ estimate.estimate_number }}')">
+                <i class="fas fa-trash"></i> {{ 'Delete'|trans }}
+            </button>
+            {% endif %}
+            
+            <a href="{{ 'estimate'|alink }}" class="btn btn-outline-secondary">{{ 'Back to List'|trans }}</a>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <!-- Estimate Header -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h4>{{ estimate.title }}</h4>
+                <p class="text-muted mb-1"><strong>{{ 'Date'|trans }}:</strong> {{ estimate.created_at|date('F j, Y') }}</p>
+                <p class="text-muted mb-1"><strong>{{ 'Valid Until'|trans }}:</strong> {{ estimate.valid_until|date('F j, Y') }}</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="mb-2">
+                    <strong>{{ 'Status'|trans }}:</strong>
+                    {% if estimate.status == 'draft' %}
+                        <span class="badge bg-secondary fs-6 text-dark">{{ 'Draft'|trans }}</span>
+                    {% elseif estimate.status == 'sent' %}
+                        <span class="badge bg-primary fs-6 text-white">{{ 'Sent'|trans }}</span>
+                    {% elseif estimate.status == 'accepted' %}
+                        <span class="badge bg-success fs-6 text-white">{{ 'Accepted'|trans }}</span>
+                    {% elseif estimate.status == 'rejected' %}
+                        <span class="badge bg-danger fs-6 text-white">{{ 'Rejected'|trans }}</span>
+                    {% elseif estimate.status == 'converted' %}
+                        <span class="badge bg-info fs-6 text-dark">{{ 'Converted'|trans }}</span>
+                    {% elseif estimate.status == 'expired' %}
+                        <span class="badge bg-warning fs-6 text-dark">{{ 'Expired'|trans }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Client Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">{{ 'Client Information'|trans }}</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-1"><strong>{{ estimate.client.first_name }} {{ estimate.client.last_name }}</strong></p>
+                {% if estimate.client.company %}
+                <p class="mb-1">{{ estimate.client.company }}</p>
+                {% endif %}
+                <p class="mb-0 text-muted">{{ estimate.client.email }}</p>
+            </div>
+        </div>
+
+        <!-- Items -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">{{ 'Items'|trans }}</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>{{ 'Item'|trans }}</th>
+                                <th>{{ 'Description'|trans }}</th>
+                                <th>{{ 'Quantity'|trans }}</th>
+                                <th>{{ 'Price'|trans }}</th>
+                                <th class="text-end">{{ 'Total'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in estimate.items %}
+                            <tr>
+                                <td><strong>{{ item.title }}</strong></td>
+                                <td>{{ item.description }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ estimate.currency }} {{ item.price|number_format(2) }}</td>
+                                <td class="text-end"><strong>{{ estimate.currency }} {{ item.total|number_format(2) }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Totals -->
+        <div class="row justify-content-end">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>{{ 'Subtotal'|trans }}:</span>
+                            <span>{{ estimate.currency }} {{ estimate.subtotal|number_format(2) }}</span>
+                        </div>
+                        {% if estimate.tax_rate > 0 %}
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>{{ 'Tax'|trans }} ({{ estimate.tax_rate }}%):</span>
+                            <span>{{ estimate.currency }} {{ estimate.tax_amount|number_format(2) }}</span>
+                        </div>
+                        {% endif %}
+                        <hr>
+                        <div class="d-flex justify-content-between fs-5 fw-bold text-primary">
+                            <span>{{ 'Total'|trans }}:</span>
+                            <span>{{ estimate.currency }} {{ estimate.total|number_format(2) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        {% if estimate.notes %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">{{ 'Notes'|trans }}</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ estimate.notes|nl2br }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Admin Actions -->
+        <div class="mt-4">
+            <div class="row">
+                <div class="col-md-12">
+                    {% if estimate.status == 'draft' %}
+                    <button class="btn btn-success me-2" onclick="sendEstimate({{ estimate.id }})">
+                        <i class="fas fa-paper-plane"></i> {{ 'Send to Client'|trans }}
+                    </button>
+                    {% endif %}
+
+                    {% if estimate.status in ['sent', 'accepted', 'rejected'] %}
+                    <button class="btn btn-outline-primary me-2" onclick="resendEstimate({{ estimate.id }})">
+                        <i class="fas fa-redo"></i> {{ 'Resend Email'|trans }}
+                    </button>
+                    {% endif %}
+
+                    {% if estimate.status in ['draft', 'sent', 'rejected'] %}
+                    <button class="btn btn-outline-success me-2" onclick="acceptEstimate({{ estimate.id }})">
+                        <i class="fas fa-check"></i> {{ 'Mark as Accepted'|trans }}
+                    </button>
+                    {% endif %}
+
+                    {% if estimate.status == 'accepted' and not estimate.invoice_id %}
+                    <button class="btn btn-info me-2" onclick="convertToInvoice({{ estimate.id }})">
+                        <i class="fas fa-file-invoice"></i> {{ 'Convert to Invoice'|trans }}
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Alerts -->
+        {% if estimate.status == 'converted' and estimate.invoice_id %}
+        <div class="alert alert-success mt-4">
+            <i class="fas fa-check-circle"></i>
+            <strong>{{ 'Estimate Converted!'|trans }}</strong> 
+            {{ 'This estimate has been converted to invoice'|trans }}
+            <a href="{{ ('invoice/manage/' ~ estimate.invoice_id)|alink }}" class="alert-link">#{{ estimate.invoice_id }}</a>
+        </div>
+        {% endif %}
+
+        {% if estimate.status == 'rejected' %}
+        <div class="alert alert-danger mt-4">
+            <i class="fas fa-times-circle"></i>
+            <strong>{{ 'Estimate Rejected'|trans }}</strong>
+            {% if estimate.rejection_reason %}
+            <p class="mb-0 mt-2"><strong>{{ 'Reason'|trans }}:</strong> {{ estimate.rejection_reason }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if estimate.status == 'accepted' %}
+        <div class="alert alert-success mt-4">
+            <i class="fas fa-check-circle"></i>
+            <strong>{{ 'Estimate Accepted'|trans }}</strong>
+            {{ 'This estimate has been accepted.'|trans }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">{{ 'Delete Estimate'|trans }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>{{ 'Warning!'|trans }}</strong> {{ 'This action cannot be undone.'|trans }}
+                </div>
+                <p>{{ 'Are you sure you want to delete estimate'|trans }} <strong id="estimateNumber"></strong>?</p>
+                <p class="text-muted">{{ 'This will permanently remove the estimate and all its data from the system.'|trans }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash"></i> {{ 'Delete Estimate'|trans }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function sendEstimate(id) {
+    if (confirm('{{ 'Send this estimate to the client?'|trans }}')) {
+        API.admin.post('estimate/send', {id: id}, function(result) {
+            FOSSBilling.message('{{ 'Estimate sent successfully!'|trans }}', 'success');
+            window.location.reload();
+        }, function(result) {
+            FOSSBilling.message(result.message, 'error');
+        });
+    }
+}
+
+function resendEstimate(id) {
+    if (confirm('{{ 'Resend this estimate to the client?'|trans }}')) {
+        API.admin.post('estimate/resend', {id: id}, function(result) {
+            FOSSBilling.message('{{ 'Estimate resent successfully!'|trans }}', 'success');
+            window.location.reload();
+        }, function(result) {
+            FOSSBilling.message(result.message, 'error');
+        });
+    }
+}
+
+function acceptEstimate(id) {
+    // Show modal with options
+    const modalHtml = `
+        <div class="modal fade" id="acceptModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ 'Accept Estimate'|trans }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>{{ 'Mark this estimate as accepted?'|trans }}</p>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="convertToInvoice" checked>
+                            <label class="form-check-label" for="convertToInvoice">
+                                {{ 'Convert to invoice automatically'|trans }}
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="notifyClient">
+                            <label class="form-check-label" for="notifyClient">
+                                {{ 'Notify client by email'|trans }}
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="overrideValidity">
+                            <label class="form-check-label" for="overrideValidity">
+                                {{ 'Accept even if expired'|trans }}
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                        <button type="button" class="btn btn-success" onclick="confirmAcceptEstimate(${id})">{{ 'Accept'|trans }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal and add new one
+    document.getElementById('acceptModal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('acceptModal')).show();
+}
+
+function confirmAcceptEstimate(id) {
+    const convertToInvoice = document.getElementById('convertToInvoice').checked;
+    const notifyClient = document.getElementById('notifyClient').checked;
+    const overrideValidity = document.getElementById('overrideValidity').checked;
+    
+    const data = {
+        id: id,
+        convert_to_invoice: convertToInvoice,
+        notify_client: notifyClient,
+        override_validity: overrideValidity
+    };
+    
+    API.admin.post('estimate/accept', data, function(result) {
+        FOSSBilling.message(result.message, 'success');
+        bootstrap.Modal.getInstance(document.getElementById('acceptModal')).hide();
+        window.location.reload();
+    }, function(result) {
+        FOSSBilling.message(result.message, 'error');
+    });
+}
+
+function convertToInvoice(id) {
+    if (confirm('{{ 'Convert this estimate to an invoice?'|trans }}')) {
+        API.admin.post('estimate/convert_to_invoice', {id: id}, function(result) {
+            FOSSBilling.message('{{ 'Estimate converted to invoice successfully!'|trans }}', 'success');
+            window.location.reload();
+        }, function(result) {
+            FOSSBilling.message(result.message, 'error');
+        });
+    }
+}
+
+function deleteEstimate(id, estimateNumber) {
+    // Update modal content
+    document.getElementById('estimateNumber').textContent = estimateNumber;
+    
+    // Show the delete modal
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+    
+    // Set up the confirm delete button
+    document.getElementById('confirmDeleteBtn').onclick = function() {
+        confirmDeleteEstimate(id, deleteModal);
+    };
+}
+
+function confirmDeleteEstimate(id, modal) {
+    // Disable the button to prevent double-clicks
+    const deleteBtn = document.getElementById('confirmDeleteBtn');
+    const originalText = deleteBtn.innerHTML;
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ 'Deleting...'|trans }}';
+    
+    API.admin.post('estimate/delete', {id: id}, function(result) {
+        FOSSBilling.message('{{ 'Estimate deleted successfully!'|trans }}', 'success');
+        modal.hide();
+        // Redirect to estimates list after successful deletion
+        window.location.href = '{{ 'estimate'|alink }}';
+    }, function(result) {
+        FOSSBilling.message(result.message, 'error');
+        // Re-enable the button on error
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = originalText;
+    });
+}
+</script>
+{% endblock %}

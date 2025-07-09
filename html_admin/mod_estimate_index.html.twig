@@ -1,0 +1,794 @@
+{% extends request.ajax ? "layout_blank.html.twig" : "layout_default.html.twig" %}
+
+{% block meta_title %}{{ 'Estimates'|trans }}{% endblock %}
+
+{% set active_menu = 'estimate' %}
+
+{% block breadcrumbs %}
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a href="{{ '/'|alink }}">
+                <svg class="icon">
+                    <use xlink:href="#home" />
+                </svg>
+            </a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">{{ 'Estimates'|trans }}</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">{{ 'Estimate management'|trans }}</h3>
+        <div class="card-actions">
+            <a href="{{ 'estimate/create'|alink }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                {{ 'Create New Estimate'|trans }}
+            </a>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <p>{{ 'Create, send and manage estimates for your clients'|trans }}</p>
+
+        <!-- Status Filter Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <label class="form-label fw-bold">{{ 'Filter by Status'|trans }}</label>
+            </div>
+        </div>
+        <div class="row g-3 mb-4">
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                <div class="card status-filter-card {{ request.status == '' ? 'border-primary bg-primary-subtle' : 'border-light' }}" 
+                     style="cursor: pointer;" 
+                     onclick="filterByStatus('')">
+                    <div class="card-body text-center py-1" style="height:50px">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <i class="fas fa-list text-primary fs-4"></i>
+                        </div>
+                        <h6 class="card-title mb-1">{{ 'All'|trans }}</h6>
+                        <small class="text-muted" id="count-all">{{ total }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                <div class="card status-filter-card {{ request.status == 'draft' ? 'border-secondary bg-secondary-subtle' : 'border-light' }}" 
+                     style="cursor: pointer;" 
+                     onclick="filterByStatus('draft')">
+                    <div class="card-body text-center py-1" style="height:50px">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <i class="fas fa-file-alt text-secondary fs-4"></i>
+                        </div>
+                        <h6 class="card-title mb-1">{{ 'Draft'|trans }}</h6>
+                        <small class="text-muted" id="count-draft">0</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                <div class="card status-filter-card {{ request.status == 'sent' ? 'border-primary bg-primary-subtle' : 'border-light' }}" 
+                     style="cursor: pointer;" 
+                     onclick="filterByStatus('sent')">
+                    <div class="card-body text-center py-1" style="height:50px">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <i class="fas fa-paper-plane text-primary fs-4"></i>
+                        </div>
+                        <h6 class="card-title mb-1">{{ 'Sent'|trans }}</h6>
+                        <small class="text-muted" id="count-sent">0</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                <div class="card status-filter-card {{ request.status == 'accepted' ? 'border-success bg-success-subtle' : 'border-light' }}" 
+                     style="cursor: pointer;" 
+                     onclick="filterByStatus('accepted')">
+                    <div class="card-body text-center py-1" style="height:50px">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <i class="fas fa-check-circle text-success fs-4"></i>
+                        </div>
+                        <h6 class="card-title mb-1">{{ 'Accepted'|trans }}</h6>
+                        <small class="text-muted" id="count-accepted">0</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                <div class="card status-filter-card {{ request.status == 'rejected' ? 'border-danger bg-danger-subtle' : 'border-light' }}" 
+                     style="cursor: pointer;" 
+                     onclick="filterByStatus('rejected')">
+                    <div class="card-body text-center py-1" style="height:50px">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <i class="fas fa-times-circle text-danger fs-4"></i>
+                        </div>
+                        <h6 class="card-title mb-1">{{ 'Rejected'|trans }}</h6>
+                        <small class="text-muted" id="count-rejected">0</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-3 col-sm-4 col-6">
+                <div class="card status-filter-card {{ request.status == 'converted' ? 'border-info bg-info-subtle' : 'border-light' }}" 
+                     style="cursor: pointer;" 
+                     onclick="filterByStatus('converted')">
+                    <div class="card-body text-center py-1" style="height:50px">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <i class="fas fa-file-invoice text-info fs-4"></i>
+                        </div>
+                        <h6 class="card-title mb-1">{{ 'Converted'|trans }}</h6>
+                        <small class="text-muted" id="count-converted">0</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instant Search -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label class="form-label fw-bold">{{ 'Search'|trans }}</label>
+                <div class="position-relative">
+                    <input type="text" 
+                           id="instant-search" 
+                           class="form-control" 
+                           value="{{ request.search }}" 
+                           placeholder="{{ 'Search by client name, estimate number, or title...'|trans }}">
+                    <div class="position-absolute top-50 end-0 translate-middle-y me-3">
+                        <i class="fas fa-search text-muted"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <button type="button" class="btn btn-outline-secondary" onclick="clearAllFilters()">
+                    <i class="fas fa-times"></i> {{ 'Clear Filters'|trans }}
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading-indicator" class="text-center py-3" style="display: none;">
+            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">{{ 'Loading...'|trans }}</span>
+            </div>
+            <span class="ms-2">{{ 'Loading estimates...'|trans }}</span>
+        </div>
+
+        <!-- Results Info -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <span id="results-info" class="text-muted">
+                    {% if estimates %}
+                        {{ 'Showing'|trans }} {{ estimates|length }} {{ 'of'|trans }} {{ total }} {{ 'estimates'|trans }}
+                    {% endif %}
+                </span>
+            </div>
+            <div>
+                <small class="text-muted" id="filter-status">
+                    {% if request.status %}
+                        {{ 'Filtered by:'|trans }} 
+                        <span class="badge bg-light text-dark">{{ request.status|title }}</span>
+                    {% endif %}
+                    {% if request.search %}
+                        {{ 'Search:'|trans }} 
+                        <span class="badge bg-light text-dark">{{ request.search }}</span>
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+
+        <!-- Estimates Table -->
+        <div id="estimates-container">
+            {% if estimates %}
+            <div class="table-responsive" style="overflow: visible;">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>{{ 'Estimate #'|trans }}</th>
+                            <th>{{ 'Client'|trans }}</th>
+                            <th>{{ 'Title'|trans }}</th>
+                            <th>{{ 'Total'|trans }}</th>
+                            <th>{{ 'Status'|trans }}</th>
+                            <th>{{ 'Created'|trans }}</th>
+                            <th>{{ 'Valid Until'|trans }}</th>
+                            <th width="120">{{ 'Actions'|trans }}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="estimates-tbody">
+                        {% for estimate in estimates %}
+                        <tr>
+                            <td>
+                                <a class="dropdown-item" href="{{ ('estimate/view/' ~ estimate.id)|alink }}">
+                                    <strong>{{ estimate.estimate_number }}</strong>
+                                </a>
+                            </td>
+                            <td>{{ estimate.first_name }} {{ estimate.last_name }}</td>
+                            <td>{{ estimate.title }}</td>
+                            <td><strong>{{ estimate.currency }} {{ estimate.total|number_format(2) }}</strong></td>
+                            <td>
+                                {% if estimate.status == 'draft' %}
+                                    <span class="badge bg-secondary text-dark">{{ 'Draft'|trans }}</span>
+                                {% elseif estimate.status == 'sent' %}
+                                    <span class="badge bg-primary text-white">{{ 'Sent'|trans }}</span>
+                                {% elseif estimate.status == 'accepted' %}
+                                    <span class="badge bg-success text-white">{{ 'Accepted'|trans }}</span>
+                                {% elseif estimate.status == 'rejected' %}
+                                    <span class="badge bg-danger text-white">{{ 'Rejected'|trans }}</span>
+                                {% elseif estimate.status == 'converted' %}
+                                    <span class="badge bg-info text-dark">{{ 'Converted'|trans }}</span>
+                                {% elseif estimate.status == 'expired' %}
+                                    <span class="badge bg-warning text-white">{{ 'Expired'|trans }}</span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark">{{ estimate.status|title }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ estimate.created_at|date('M j, Y') }}</td>
+                            <td>{{ estimate.valid_until|date('M j, Y') }}</td>
+                            <td>
+                                <div class="dropdown" style="position: static;">
+                                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" 
+                                            id="dropdownMenuButton{{ estimate.id }}" 
+                                            data-bs-toggle="dropdown" 
+                                            data-bs-boundary="viewport"
+                                            aria-expanded="false">
+                                        {{ 'Actions'|trans }}
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton{{ estimate.id }}">
+                                        <li><a class="dropdown-item" href="{{ ('estimate/view/' ~ estimate.id)|alink }}">
+                                            <i class="fas fa-eye"></i> {{ 'View'|trans }}
+                                        </a></li>
+                                        
+                                        {% if estimate.status != 'converted' %}
+                                        <li><a class="dropdown-item" href="{{ ('estimate/edit/' ~ estimate.id)|alink }}">
+                                            <i class="fas fa-edit"></i> {{ 'Edit'|trans }}
+                                        </a></li>
+                                        {% endif %}
+                                        
+                                        {% if estimate.status == 'draft' %}
+                                        <li><a class="dropdown-item" href="#" onclick="sendEstimate({{ estimate.id }}); return false;">
+                                            <i class="fas fa-paper-plane"></i> {{ 'Send'|trans }}
+                                        </a></li>
+                                        {% endif %}
+                                        
+                                        {% if estimate.status in ['sent', 'accepted', 'rejected'] %}
+                                        <li><a class="dropdown-item" href="#" onclick="resendEstimate({{ estimate.id }}); return false;">
+                                            <i class="fas fa-redo"></i> {{ 'Resend Email'|trans }}
+                                        </a></li>
+                                        {% endif %}
+                                        
+                                        {% if estimate.status in ['draft', 'sent', 'rejected'] %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="#" onclick="acceptEstimate({{ estimate.id }}); return false;">
+                                            <i class="fas fa-check text-success"></i> {{ 'Mark as Accepted'|trans }}
+                                        </a></li>
+                                        {% endif %}
+                                        
+                                        {% if estimate.status == 'accepted' and not estimate.invoice_id %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="#" onclick="convertToInvoice({{ estimate.id }}); return false;">
+                                            <i class="fas fa-file-invoice text-info"></i> {{ 'Convert to Invoice'|trans }}
+                                        </a></li>
+                                        {% endif %}
+                                        
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="{{ ('estimate/pdf/' ~ estimate.id)|alink }}" target="_blank">
+                                            <i class="fas fa-file-pdf text-danger"></i> {{ 'Download PDF'|trans }}
+                                        </a></li>
+                                        
+                                        <!-- Delete option - only for draft or rejected estimates -->
+                                        {% if estimate.status in ['draft', 'rejected'] %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteEstimate({{ estimate.id }}, '{{ estimate.estimate_number }}'); return false;">
+                                            <i class="fas fa-trash"></i> {{ 'Delete'|trans }}
+                                        </a></li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                {{ 'No estimates found'|trans }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">{{ 'Delete Estimate'|trans }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>{{ 'Warning!'|trans }}</strong> {{ 'This action cannot be undone.'|trans }}
+                </div>
+                <p>{{ 'Are you sure you want to delete estimate'|trans }} <strong id="estimateNumber"></strong>?</p>
+                <p class="text-muted">{{ 'This will permanently remove the estimate and all its data from the system.'|trans }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash"></i> {{ 'Delete Estimate'|trans }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let searchTimeout;
+let currentStatus = '{{ request.status }}';
+let currentSearch = '{{ request.search }}';
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Set up instant search
+    setupInstantSearch();
+    
+    // Calculate status counts on page load
+    calculateStatusCounts();
+    
+    // Fix dropdown overflow issues
+    setupDropdownFix();
+});
+
+function setupInstantSearch() {
+    const searchInput = document.getElementById('instant-search');
+    
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        // Clear previous timeout
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+        
+        // Debounce search with 500ms delay
+        searchTimeout = setTimeout(() => {
+            currentSearch = query;
+            loadEstimates();
+        }, 500);
+    });
+    
+    // Also search on Enter key
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            currentSearch = this.value.trim();
+            loadEstimates();
+        }
+    });
+}
+
+function filterByStatus(status) {
+    currentStatus = status;
+    loadEstimates();
+    updateStatusCards();
+}
+
+function clearAllFilters() {
+    currentStatus = '';
+    currentSearch = '';
+    document.getElementById('instant-search').value = '';
+    loadEstimates();
+    updateStatusCards();
+}
+
+function loadEstimates() {
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const estimatesContainer = document.getElementById('estimates-container');
+    
+    // Show loading
+    loadingIndicator.style.display = 'block';
+    estimatesContainer.style.opacity = '0.5';
+    
+    // Build URL with current filters
+    const params = new URLSearchParams();
+    if (currentStatus) {
+        params.append('status', currentStatus);
+    }
+    if (currentSearch) {
+        params.append('search', currentSearch);
+    }
+    
+    const url = `{{ 'estimate'|alink }}${params.toString() ? '?' + params.toString() : ''}`;
+    
+    // Update browser URL without page reload
+    history.pushState({}, '', url);
+    
+    // Make AJAX request
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        // Parse the response to extract estimates container
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newEstimatesContainer = doc.getElementById('estimates-container');
+        const newResultsInfo = doc.getElementById('results-info');
+        
+        if (newEstimatesContainer) {
+            estimatesContainer.innerHTML = newEstimatesContainer.innerHTML;
+        }
+        
+        if (newResultsInfo) {
+            document.getElementById('results-info').innerHTML = newResultsInfo.innerHTML;
+        }
+        
+        // Update filter status display
+        updateFilterStatus();
+        
+        // Calculate new status counts
+        calculateStatusCounts();
+        
+        // Re-setup dropdown fix for new elements
+        setupDropdownFix();
+        
+        // Hide loading
+        loadingIndicator.style.display = 'none';
+        estimatesContainer.style.opacity = '1';
+    })
+    .catch(error => {
+        console.error('Error loading estimates:', error);
+        FOSSBilling.message('{{ 'Error loading estimates'|trans }}', 'error');
+        
+        // Hide loading
+        loadingIndicator.style.display = 'none';
+        estimatesContainer.style.opacity = '1';
+    });
+}
+
+function updateStatusCards() {
+    // Remove active classes from all cards
+    document.querySelectorAll('.status-filter-card').forEach(card => {
+        card.classList.remove('border-primary', 'bg-primary-subtle', 'border-secondary', 'bg-secondary-subtle', 
+                           'border-success', 'bg-success-subtle', 'border-danger', 'bg-danger-subtle', 
+                           'border-info', 'bg-info-subtle');
+        card.classList.add('border-light');
+    });
+    
+    // Add active class to current status card
+    const activeCard = document.querySelector(`[onclick="filterByStatus('${currentStatus}')"]`);
+    if (activeCard) {
+        activeCard.classList.remove('border-light');
+        
+        // Add appropriate active styling based on status
+        if (currentStatus === '') {
+            activeCard.classList.add('border-primary', 'bg-primary-subtle');
+        } else if (currentStatus === 'draft') {
+            activeCard.classList.add('border-secondary', 'bg-secondary-subtle');
+        } else if (currentStatus === 'sent') {
+            activeCard.classList.add('border-primary', 'bg-primary-subtle');
+        } else if (currentStatus === 'accepted') {
+            activeCard.classList.add('border-success', 'bg-success-subtle');
+        } else if (currentStatus === 'rejected') {
+            activeCard.classList.add('border-danger', 'bg-danger-subtle');
+        } else if (currentStatus === 'converted') {
+            activeCard.classList.add('border-info', 'bg-info-subtle');
+        }
+    }
+}
+
+function updateFilterStatus() {
+    const filterStatusEl = document.getElementById('filter-status');
+    let statusHtml = '';
+    
+    if (currentStatus) {
+        statusHtml += `{{ 'Filtered by:'|trans }} <span class="badge bg-light text-dark">${currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1)}</span> `;
+    }
+    
+    if (currentSearch) {
+        statusHtml += `{{ 'Search:'|trans }} <span class="badge bg-light text-dark">${currentSearch}</span>`;
+    }
+    
+    filterStatusEl.innerHTML = statusHtml;
+}
+
+function calculateStatusCounts() {
+    // This would ideally come from your backend, but we can approximate from visible data
+    // In a real implementation, you'd want to get these counts from your API
+    const statusCounts = {
+        all: 0,
+        draft: 0,
+        sent: 0,
+        accepted: 0,
+        rejected: 0,
+        converted: 0,
+        expired: 0
+    };
+    
+    // Count from current table (this is an approximation)
+    const tbody = document.getElementById('estimates-tbody');
+    if (tbody) {
+        const rows = tbody.querySelectorAll('tr');
+        statusCounts.all = rows.length;
+        
+        rows.forEach(row => {
+            const statusBadge = row.querySelector('.badge');
+            if (statusBadge) {
+                const status = statusBadge.textContent.toLowerCase().trim();
+                if (statusCounts.hasOwnProperty(status)) {
+                    statusCounts[status]++;
+                }
+            }
+        });
+    }
+    
+    // Update count displays
+    Object.keys(statusCounts).forEach(status => {
+        const countEl = document.getElementById(`count-${status}`);
+        if (countEl) {
+            countEl.textContent = statusCounts[status];
+        }
+    });
+}
+
+function setupDropdownFix() {
+    // Ensure dropdowns don't get clipped
+    const dropdowns = document.querySelectorAll('.dropdown-toggle');
+    dropdowns.forEach(function(dropdown) {
+        dropdown.addEventListener('show.bs.dropdown', function() {
+            const tableContainer = this.closest('.table-responsive');
+            if (tableContainer) {
+                tableContainer.style.overflow = 'visible';
+                tableContainer.style.marginBottom = '200px';
+            }
+        });
+        
+        dropdown.addEventListener('hide.bs.dropdown', function() {
+            const tableContainer = this.closest('.table-responsive');
+            if (tableContainer) {
+                tableContainer.style.overflow = '';
+                tableContainer.style.marginBottom = '';
+            }
+        });
+    });
+}
+
+// Existing functions for estimate actions
+function sendEstimate(id) {
+    if (confirm('{{ 'Send this estimate to the client?'|trans }}')) {
+        API.admin.post('estimate/send', {id: id}, function(result) {
+            FOSSBilling.message('{{ 'Estimate sent successfully!'|trans }}', 'success');
+            loadEstimates(); // Reload with current filters
+        }, function(result) {
+            FOSSBilling.message(result.message, 'error');
+        });
+    }
+}
+
+function resendEstimate(id) {
+    if (confirm('{{ 'Resend this estimate to the client?'|trans }}')) {
+        API.admin.post('estimate/resend', {id: id}, function(result) {
+            FOSSBilling.message('{{ 'Estimate resent successfully!'|trans }}', 'success');
+            loadEstimates(); // Reload with current filters
+        }, function(result) {
+            FOSSBilling.message(result.message, 'error');
+        });
+    }
+}
+
+function acceptEstimate(id) {
+    // Show modal with options
+    const modalHtml = `
+        <div class="modal fade" id="acceptModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ 'Accept Estimate'|trans }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>{{ 'Mark this estimate as accepted?'|trans }}</p>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="convertToInvoice" checked>
+                            <label class="form-check-label" for="convertToInvoice">
+                                {{ 'Convert to invoice automatically'|trans }}
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="notifyClient">
+                            <label class="form-check-label" for="notifyClient">
+                                {{ 'Notify client by email'|trans }}
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="overrideValidity">
+                            <label class="form-check-label" for="overrideValidity">
+                                {{ 'Accept even if expired'|trans }}
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                        <button type="button" class="btn btn-success" onclick="confirmAcceptEstimate(${id})">{{ 'Accept'|trans }}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal and add new one
+    document.getElementById('acceptModal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('acceptModal')).show();
+}
+
+function confirmAcceptEstimate(id) {
+    const convertToInvoice = document.getElementById('convertToInvoice').checked;
+    const notifyClient = document.getElementById('notifyClient').checked;
+    const overrideValidity = document.getElementById('overrideValidity').checked;
+    
+    const data = {
+        id: id,
+        convert_to_invoice: convertToInvoice,
+        notify_client: notifyClient,
+        override_validity: overrideValidity
+    };
+    
+    API.admin.post('estimate/accept', data, function(result) {
+        FOSSBilling.message(result.message, 'success');
+        bootstrap.Modal.getInstance(document.getElementById('acceptModal')).hide();
+        loadEstimates(); // Reload with current filters
+    }, function(result) {
+        FOSSBilling.message(result.message, 'error');
+    });
+}
+
+function convertToInvoice(id) {
+    if (confirm('{{ 'Convert this estimate to an invoice?'|trans }}')) {
+        API.admin.post('estimate/convert_to_invoice', {id: id}, function(result) {
+            FOSSBilling.message('{{ 'Estimate converted to invoice successfully!'|trans }}', 'success');
+            loadEstimates(); // Reload with current filters
+        }, function(result) {
+            FOSSBilling.message(result.message, 'error');
+        });
+    }
+}
+
+function deleteEstimate(id, estimateNumber) {
+    // Update modal content
+    document.getElementById('estimateNumber').textContent = estimateNumber;
+    
+    // Show the delete modal
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+    
+    // Set up the confirm delete button
+    document.getElementById('confirmDeleteBtn').onclick = function() {
+        confirmDeleteEstimate(id, deleteModal);
+    };
+}
+
+function confirmDeleteEstimate(id, modal) {
+    // Disable the button to prevent double-clicks
+    const deleteBtn = document.getElementById('confirmDeleteBtn');
+    const originalText = deleteBtn.innerHTML;
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ 'Deleting...'|trans }}';
+    
+    API.admin.post('estimate/delete', {id: id}, function(result) {
+        FOSSBilling.message('{{ 'Estimate deleted successfully!'|trans }}', 'success');
+        modal.hide();
+        loadEstimates(); // Reload with current filters
+    }, function(result) {
+        FOSSBilling.message(result.message, 'error');
+        // Re-enable the button on error
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = originalText;
+    });
+}
+</script>
+
+<style>
+/* Custom styles for status filter cards */
+.status-filter-card {
+    transition: all 0.2s ease-in-out;
+    min-height: 70px;
+}
+
+.status-filter-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.status-filter-card.border-primary {
+    border-width: 2px !important;
+}
+
+.status-filter-card.border-secondary {
+    border-width: 2px !important;
+}
+
+.status-filter-card.border-success {
+    border-width: 2px !important;
+}
+
+.status-filter-card.border-danger {
+    border-width: 2px !important;
+}
+
+.status-filter-card.border-info {
+    border-width: 2px !important;
+}
+
+/* Loading state styling */
+#loading-indicator {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+/* Search input styling */
+#instant-search {
+    padding-right: 3rem;
+}
+
+/* Results info styling */
+#results-info {
+    font-size: 0.9rem;
+}
+
+#filter-status .badge {
+    font-size: 0.75rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .status-filter-card {
+        min-height: 50px;
+    }
+    
+    .status-filter-card .card-body {
+        padding: 0.75rem 0.5rem;
+    }
+    
+    .status-filter-card h6 {
+        font-size: 0.85rem;
+    }
+    
+    .status-filter-card small {
+        font-size: 0.75rem;
+    }
+    
+    .status-filter-card i {
+        font-size: 1rem !important;
+    }
+}
+
+/* Animation for count updates */
+.status-filter-card small {
+    transition: color 0.3s ease;
+}
+
+.status-filter-card:hover small {
+    color: #495057 !important;
+}
+
+/* Table responsiveness improvements */
+@media (max-width: 992px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-sm {
+        font-size: 0.775rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+</style>
+{% endblock %}

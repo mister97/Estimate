@@ -1,0 +1,30 @@
+{
+    "id": "Estimate",
+    "name": "Estimate System",
+    "description": "Create estimates/quotes and convert them to invoices",
+    "version": "1.0.0",
+    "author": "KGC Innovations Ltd",
+    "homepage_url": "https://kgcinnovations.com",
+    "download_url": "https://kgcinnovations.com",
+    "icon_url": "icon.svg",
+    "type": "mod",
+    "license": "Apache-2.0",
+    "minimum_boxbilling_version": "0.6.0",
+    "permissions": {
+        "manage_estimates": {
+            "type": "bool",
+            "display_name": "Manage Estimates",
+            "description": "Allows staff to create, edit, manage, accept and reject estimates"
+        },
+        "send_estimates": {
+            "type": "bool", 
+            "display_name": "Send Estimates",
+            "description": "Allows staff to send and resend estimates to clients"
+        },
+        "convert_estimates": {
+            "type": "bool",
+            "display_name": "Convert Estimates to Invoices", 
+            "description": "Allows staff to convert estimates to invoices"
+        }
+    }
+}

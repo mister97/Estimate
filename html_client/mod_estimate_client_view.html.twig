@@ -1,0 +1,203 @@
+{% extends request.ajax ? "layout_blank.html.twig" : "layout_default.html.twig" %}
+
+{% block meta_title %}{{ 'Estimate'|trans }} {{ estimate.estimate_number }}{% endblock %}
+
+{% set active_menu = 'estimate' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">{{ 'Estimate'|trans }} {{ estimate.estimate_number }}</h3>
+        <div class="card-actions">
+            <a href="{{ ('estimate/pdf/' ~ estimate.id)|link }}" class="btn btn-outline-danger" target="_blank">
+                <i class="fas fa-file-pdf"></i> {{ 'Download PDF'|trans }}
+            </a>
+            <a href="{{ 'estimate'|link }}" class="btn btn-outline-secondary">{{ 'Back to List'|trans }}</a>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <!-- Estimate Header -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h4>{{ estimate.title }}</h4>
+                <p class="text-muted mb-1"><strong>{{ 'Date'|trans }}:</strong> {{ estimate.created_at|date('F j, Y') }}</p>
+                <p class="text-muted mb-1"><strong>{{ 'Valid Until'|trans }}:</strong> {{ estimate.valid_until|date('F j, Y') }}</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="mb-2">
+                    <strong>{{ 'Status'|trans }}:</strong>
+                    {% if estimate.status == 'draft' %}
+                        <span class="badge bg-secondary fs-6">{{ 'Draft'|trans }}</span>
+                    {% elseif estimate.status == 'sent' %}
+                        <span class="badge bg-primary fs-6">{{ 'Sent'|trans }}</span>
+                    {% elseif estimate.status == 'accepted' %}
+                        <span class="badge bg-success fs-6">{{ 'Accepted'|trans }}</span>
+                    {% elseif estimate.status == 'rejected' %}
+                        <span class="badge bg-danger fs-6">{{ 'Rejected'|trans }}</span>
+                    {% elseif estimate.status == 'converted' %}
+                        <span class="badge bg-info fs-6">{{ 'Converted'|trans }}</span>
+                    {% elseif estimate.status == 'expired' %}
+                        <span class="badge bg-warning fs-6">{{ 'Expired'|trans }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Items -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">{{ 'Items'|trans }}</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>{{ 'Item'|trans }}</th>
+                                <th>{{ 'Description'|trans }}</th>
+                                <th>{{ 'Quantity'|trans }}</th>
+                                <th>{{ 'Price'|trans }}</th>
+                                <th class="text-end">{{ 'Total'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in estimate.items %}
+                            <tr>
+                                <td><strong>{{ item.title }}</strong></td>
+                                <td>{{ item.description }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ estimate.currency }} {{ item.price|number_format(2) }}</td>
+                                <td class="text-end"><strong>{{ estimate.currency }} {{ item.total|number_format(2) }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Totals -->
+        <div class="row justify-content-end">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>{{ 'Subtotal'|trans }}:</span>
+                            <span>{{ estimate.currency }} {{ estimate.subtotal|number_format(2) }}</span>
+                        </div>
+                        {% if estimate.tax_rate > 0 %}
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>{{ 'Tax'|trans }} ({{ estimate.tax_rate }}%):</span>
+                            <span>{{ estimate.currency }} {{ estimate.tax_amount|number_format(2) }}</span>
+                        </div>
+                        {% endif %}
+                        <hr>
+                        <div class="d-flex justify-content-between fs-5 fw-bold text-primary">
+                            <span>{{ 'Total'|trans }}:</span>
+                            <span>{{ estimate.currency }} {{ estimate.total|number_format(2) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        {% if estimate.notes %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">{{ 'Notes'|trans }}</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ estimate.notes|nl2br }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons for Sent Status -->
+        {% if estimate.status == 'sent' %}
+        <div class="mt-4 text-center">
+            <div class="d-grid gap-2 d-md-block">
+                <button class="btn btn-success btn-lg me-3" onclick="acceptEstimate()">
+                    <i class="fas fa-check"></i> {{ 'Accept Estimate'|trans }}
+                </button>
+                <button class="btn btn-danger btn-lg" onclick="rejectEstimate()">
+                    <i class="fas fa-times"></i> {{ 'Reject Estimate'|trans }}
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Status Alerts -->
+        {% if estimate.status == 'accepted' %}
+        <div class="alert alert-success mt-4">
+            <i class="fas fa-check-circle"></i>
+            <strong>{{ 'Estimate Accepted!'|trans }}</strong> {{ 'Thank you for accepting this estimate.'|trans }}
+            {% if estimate.invoice_id %}
+            <br><a href="{{ ('invoice/')|link }}" class="alert-link">{{ 'View Invoices'|trans }}</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if estimate.status == 'rejected' %}
+        <div class="alert alert-danger mt-4">
+            <i class="fas fa-times-circle"></i>
+            <strong>{{ 'Estimate Rejected'|trans }}</strong>
+            {% if estimate.rejection_reason %}
+            <p class="mb-0 mt-2"><strong>{{ 'Reason'|trans }}:</strong> {{ estimate.rejection_reason }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if estimate.status == 'converted' %}
+        <div class="alert alert-info mt-4">
+            <i class="fas fa-file-invoice"></i>
+            <strong>{{ 'Estimate Converted'|trans }}</strong>
+            {{ 'This estimate has been converted to an invoice.'|trans }}
+            {% if estimate.invoice_id %}
+            <br><a href="{{ ('invoice/')|link }}" class="alert-link">{{ 'View Invoices'|trans }}</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if estimate.status == 'expired' %}
+        <div class="alert alert-warning mt-4">
+            <i class="fas fa-clock"></i>
+            <strong>{{ 'Estimate Expired'|trans }}</strong>
+            {{ 'This estimate has passed its validity date.'|trans }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function acceptEstimate() {
+    if (confirm('{{ 'Are you sure you want to accept this estimate?'|trans }}')) {
+        API.client.post('estimate/accept', {
+            id: {{ estimate.id }},
+            convert_to_invoice: true
+        }, function(result) {
+            FOSSBilling.message(result.message, 'success');
+            window.location.reload();
+        }, function(result) {
+            FOSSBilling.message(result.message, 'error');
+        });
+    }
+}
+
+function rejectEstimate() {
+    const reason = prompt('{{ 'Please provide a reason for rejection (optional):'|trans }}');
+    if (reason !== null) {
+        API.client.post('estimate/reject', {
+            id: {{ estimate.id }},
+            reason: reason
+        }, function(result) {
+            FOSSBilling.message(result.message, 'success');
+            window.location.reload();
+        }, function(result) {
+            FOSSBilling.message(result.message, 'error');
+        });
+    }
+}
+</script>
+{% endblock %}

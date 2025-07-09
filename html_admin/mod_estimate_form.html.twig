@@ -1,0 +1,537 @@
+{% extends request.ajax ? "layout_blank.html.twig" : "layout_default.html.twig" %}
+
+{% block meta_title %}
+    {% if estimate.id %}{{ 'Edit Estimate'|trans }}{% else %}{{ 'Create Estimate'|trans }}{% endif %}
+{% endblock %}
+
+{% set active_menu = 'estimate' %}
+
+{% block breadcrumbs %}
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a href="{{ '/'|alink }}">
+                <svg class="icon">
+                    <use xlink:href="#home" />
+                </svg>
+            </a>
+        </li>
+        <li class="breadcrumb-item">
+            <a href="{{ 'estimate'|alink }}">{{ 'Estimates'|trans }}</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">{{ 'Create Estimate'|trans }}</li>
+    </ol>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            {% if estimate.id %}{{ 'Edit Estimate'|trans }}{% else %}{{ 'Create Estimate'|trans }}{% endif %}
+        </h3>
+        <div class="card-actions">
+            <a href="{{ 'estimate'|alink }}" class="btn btn-outline-secondary">{{ 'Back to List'|trans }}</a>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <form id="estimate-form" class="needs-validation" novalidate>
+            {% if estimate.id %}
+            <input type="hidden" name="id" value="{{ estimate.id }}">
+            {% endif %}
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">{{ 'Client'|trans }} <span class="text-danger">*</span></label>
+                    <div class="client-search-container position-relative">
+                        <input type="text" 
+                               id="client-search" 
+                               class="form-control" 
+                               placeholder="{{ 'Search for a client...'|trans }}"
+                               value="{% if estimate.client_id %}{{ estimate.client.first_name }} {{ estimate.client.last_name }}{% if estimate.client.company %} ({{ estimate.client.company }}){% endif %} - {{ estimate.client.email }}{% endif %}"
+                               {% if estimate.id %}readonly{% endif %}
+                               required>
+                        <input type="hidden" name="client_id" id="client-id" value="{{ estimate.client_id }}">
+                        
+                        <div id="client-dropdown" class="dropdown-menu position-absolute w-100" style="max-height: 200px; overflow-y: auto; z-index: 1000; display: none;">
+                            <!-- Search results will be populated here -->
+                        </div>
+                        
+                        <div class="invalid-feedback">{{ 'Please select a client'|trans }}</div>
+                    </div>
+                    
+                    <!-- Hidden client data for JavaScript -->
+                    <script type="application/json" id="clients-data">
+                        [
+                            {% for client in clients %}
+                            {
+                                "id": {{ client.id }},
+                                "first_name": "{{ client.first_name|e('js') }}",
+                                "last_name": "{{ client.last_name|e('js') }}",
+                                "company": "{{ client.company|e('js') }}",
+                                "email": "{{ client.email|e('js') }}"
+                            }{% if not loop.last %},{% endif %}
+                            {% endfor %}
+                        ]
+                    </script>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">{{ 'Title'|trans }} <span class="text-danger">*</span></label>
+                    <input type="text" name="title" class="form-control" value="{{ estimate.title }}" required>
+                    <div class="invalid-feedback">{{ 'Please enter a title'|trans }}</div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">{{ 'Currency'|trans }}</label>
+                    <select name="currency" id="currency" class="form-select">
+                        <option value="GBP" {% if estimate.currency == 'GBP' %}selected{% endif %}>GBP</option>
+                        <option value="USD" {% if estimate.currency == 'USD' %}selected{% endif %}>USD</option>
+                        <option value="EUR" {% if estimate.currency == 'EUR' %}selected{% endif %}>EUR</option>
+                        <option value="CAD" {% if estimate.currency == 'CAD' %}selected{% endif %}>CAD</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">{{ 'Valid Until'|trans }} <span class="text-danger">*</span></label>
+                    <input type="date" name="valid_until" class="form-control" value="{{ estimate.valid_until }}" required>
+                    <div class="invalid-feedback">{{ 'Please enter a valid date'|trans }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">{{ 'Tax Rate (%)'|trans }}</label>
+                    <input type="number" name="tax_rate" id="tax_rate" class="form-control" value="{{ estimate.tax_rate|default(0) }}" step="0.01" min="0" max="100">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">{{ 'Items'|trans }} <span class="text-danger">*</span></label>
+                <div id="items-container">
+                    {% if estimate.items %}
+                        {% for item in estimate.items %}
+                        <div class="item-row card mb-3">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">{{ 'Title'|trans }}</label>
+                                        <input type="text" name="items[{{ loop.index0 }}][title]" class="form-control" value="{{ item.title }}" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">{{ 'Description'|trans }}</label>
+                                        <input type="text" name="items[{{ loop.index0 }}][description]" class="form-control" value="{{ item.description }}">
+                                    </div>
+                                </div>
+                                <div class="row align-items-end">
+                                    <div class="col-md-3">
+                                        <label class="form-label">{{ 'Quantity'|trans }}</label>
+                                        <input type="number" name="items[{{ loop.index0 }}][quantity]" class="form-control" value="{{ item.quantity }}" step="0.01" min="0.01" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">{{ 'Price'|trans }}</label>
+                                        <input type="number" name="items[{{ loop.index0 }}][price]" class="form-control" value="{{ item.price }}" step="0.01" min="0" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">{{ 'Total'|trans }}</label>
+                                        <input type="number" class="form-control item-total" value="{{ item.total }}" readonly>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn btn-danger" onclick="removeItem(this)">
+                                            <i class="fas fa-trash"></i> {{ 'Remove'|trans }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="item-row card mb-3">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">{{ 'Title'|trans }}</label>
+                                        <input type="text" name="items[0][title]" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">{{ 'Description'|trans }}</label>
+                                        <input type="text" name="items[0][description]" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="row align-items-end">
+                                    <div class="col-md-3">
+                                        <label class="form-label">{{ 'Quantity'|trans }}</label>
+                                        <input type="number" name="items[0][quantity]" class="form-control" value="1" step="0.01" min="0.01" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">{{ 'Price'|trans }}</label>
+                                        <input type="number" name="items[0][price]" class="form-control" step="0.01" min="0" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">{{ 'Total'|trans }}</label>
+                                        <input type="number" class="form-control item-total" readonly>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn btn-danger" onclick="removeItem(this)">
+                                            <i class="fas fa-trash"></i> {{ 'Remove'|trans }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                <button type="button" class="btn btn-outline-primary" onclick="addItem()">
+                    <i class="fas fa-plus"></i> {{ 'Add Item'|trans }}
+                </button>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">{{ 'Notes'|trans }}</label>
+                <textarea name="notes" class="form-control" rows="4">{{ estimate.notes }}</textarea>
+            </div>
+
+            <!-- Totals -->
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title text-dark">{{ 'Totals'|trans }}</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between">
+                                <strong class="text-dark">{{ 'Subtotal'|trans }}:</strong>
+                                <span id="subtotal" class="text-dark">{{ estimate.currency|default('GBP') }} {{ estimate.subtotal|default(0)|number_format(2) }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between">
+                                <strong class="text-dark">{{ 'Tax'|trans }}:</strong>
+                                <span id="tax-amount" class="text-dark">{{ estimate.currency|default('GBP') }} {{ estimate.tax_amount|default(0)|number_format(2) }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between fs-5 text-primary">
+                                <strong class="text-dark">{{ 'Total'|trans }}:</strong>
+                                <span id="total" class="text-dark"><strong>{{ estimate.currency|default('GBP') }} {{ estimate.total|default(0)|number_format(2) }}</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    {% if estimate.id %}{{ 'Update Estimate'|trans }}{% else %}{{ 'Create Estimate'|trans }}{% endif %}
+                </button>
+                <a href="{{ 'estimate'|alink }}" class="btn btn-outline-secondary">{{ 'Cancel'|trans }}</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let itemIndex = {{ estimate.items|length > 0 ? estimate.items|length : 1 }};
+let clientSearchTimeout;
+let allClients = [];
+
+// Load clients data from the embedded JSON
+function loadClientsData() {
+    try {
+        const clientsScript = document.getElementById('clients-data');
+        if (clientsScript) {
+            allClients = JSON.parse(clientsScript.textContent);
+        }
+    } catch (e) {
+        console.error('Error loading clients data:', e);
+        allClients = [];
+    }
+}
+
+// Client search functionality
+function initClientSearch() {
+    const searchInput = document.getElementById('client-search');
+    const clientIdInput = document.getElementById('client-id');
+    const dropdown = document.getElementById('client-dropdown');
+    
+    // Don't add search functionality if editing and client is readonly
+    if (searchInput.readOnly) {
+        return;
+    }
+    
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        // Clear previous timeout
+        if (clientSearchTimeout) {
+            clearTimeout(clientSearchTimeout);
+        }
+        
+        // Clear client ID if input is changed
+        clientIdInput.value = '';
+        
+        if (query.length < 2) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        
+        // Debounce the search
+        clientSearchTimeout = setTimeout(() => {
+            searchClients(query);
+        }, 150);
+    });
+    
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+    
+    // Show dropdown when focusing on search input with existing results
+    searchInput.addEventListener('focus', function() {
+        if (dropdown.children.length > 0 && this.value.length >= 2) {
+            dropdown.style.display = 'block';
+        }
+    });
+}
+
+function searchClients(query) {
+    const dropdown = document.getElementById('client-dropdown');
+    const searchTerm = query.toLowerCase();
+    
+    // Filter clients based on search term
+    const filteredClients = allClients.filter(client => {
+        const fullName = `${client.first_name} ${client.last_name}`.toLowerCase();
+        const company = (client.company || '').toLowerCase();
+        const email = client.email.toLowerCase();
+        
+        return fullName.includes(searchTerm) || 
+               company.includes(searchTerm) || 
+               email.includes(searchTerm);
+    });
+    
+    displayClientResults(filteredClients);
+}
+
+function displayClientResults(clients) {
+    const dropdown = document.getElementById('client-dropdown');
+    
+    if (clients.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-item text-muted">{{ 'No clients found'|trans }}</div>';
+        dropdown.style.display = 'block';
+        return;
+    }
+    
+    dropdown.innerHTML = '';
+    
+    // Limit results to prevent UI issues
+    const maxResults = Math.min(clients.length, 10);
+    
+    for (let i = 0; i < maxResults; i++) {
+        const client = clients[i];
+        const item = document.createElement('div');
+        item.className = 'dropdown-item';
+        item.style.cursor = 'pointer';
+        
+        const displayName = `${client.first_name} ${client.last_name}`;
+        const company = client.company ? ` (${client.company})` : '';
+        const email = ` - ${client.email}`;
+        
+        item.innerHTML = `
+            <div class="d-flex flex-column">
+                <strong>${displayName}${company}</strong>
+                <small class="text-muted">${client.email}</small>
+            </div>
+        `;
+        
+        item.addEventListener('click', function() {
+            selectClient(client, displayName + company + email);
+        });
+        
+        // Add hover effect
+        item.addEventListener('mouseenter', function() {
+            this.classList.add('active');
+        });
+        
+        item.addEventListener('mouseleave', function() {
+            this.classList.remove('active');
+        });
+        
+        dropdown.appendChild(item);
+    }
+    
+    // Show count if there are more results
+    if (clients.length > maxResults) {
+        const moreItem = document.createElement('div');
+        moreItem.className = 'dropdown-item text-muted';
+        moreItem.innerHTML = `<small>{{ 'And'|trans }} ${clients.length - maxResults} {{ 'more results...'|trans }}</small>`;
+        dropdown.appendChild(moreItem);
+    }
+    
+    dropdown.style.display = 'block';
+}
+
+function selectClient(client, displayText) {
+    const searchInput = document.getElementById('client-search');
+    const clientIdInput = document.getElementById('client-id');
+    const dropdown = document.getElementById('client-dropdown');
+    
+    searchInput.value = displayText;
+    clientIdInput.value = client.id;
+    dropdown.style.display = 'none';
+    
+    // Remove any validation errors
+    searchInput.classList.remove('is-invalid');
+}
+
+function addItem() {
+    const container = document.getElementById('items-container');
+    const itemRow = document.createElement('div');
+    itemRow.className = 'item-row card mb-3';
+    
+    itemRow.innerHTML = `
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">{{ 'Title'|trans }}</label>
+                    <input type="text" name="items[${itemIndex}][title]" class="form-control" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">{{ 'Description'|trans }}</label>
+                    <input type="text" name="items[${itemIndex}][description]" class="form-control">
+                </div>
+            </div>
+            <div class="row align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">{{ 'Quantity'|trans }}</label>
+                    <input type="number" name="items[${itemIndex}][quantity]" class="form-control" value="1" step="0.01" min="0.01" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{{ 'Price'|trans }}</label>
+                    <input type="number" name="items[${itemIndex}][price]" class="form-control" step="0.01" min="0" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{{ 'Total'|trans }}</label>
+                    <input type="number" class="form-control item-total" readonly>
+                </div>
+                <div class="col-md-3">
+                    <button type="button" class="btn btn-danger" onclick="removeItem(this)">
+                        <i class="fas fa-trash"></i> {{ 'Remove'|trans }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(itemRow);
+    itemIndex++;
+    
+    // Add event listeners for calculation
+    const inputs = itemRow.querySelectorAll('input[type="number"]');
+    inputs.forEach(input => {
+        input.addEventListener('input', calculateTotals);
+    });
+}
+
+function removeItem(button) {
+    if (document.querySelectorAll('.item-row').length > 1) {
+        button.closest('.item-row').remove();
+        calculateTotals();
+    } else {
+        FOSSBilling.message('{{ 'At least one item is required'|trans }}', 'error');
+    }
+}
+
+function calculateTotals() {
+    const currency = document.getElementById('currency').value;
+    const taxRate = parseFloat(document.getElementById('tax_rate').value) || 0;
+    let subtotal = 0;
+
+    // Calculate each item total
+    document.querySelectorAll('.item-row').forEach(row => {
+        const quantity = parseFloat(row.querySelector('input[name*="[quantity]"]').value) || 0;
+        const price = parseFloat(row.querySelector('input[name*="[price]"]').value) || 0;
+        const total = quantity * price;
+        
+        row.querySelector('.item-total').value = total.toFixed(2);
+        subtotal += total;
+    });
+
+    // Calculate tax and total
+    const taxAmount = (subtotal * taxRate) / 100;
+    const total = subtotal + taxAmount;
+
+    // Update display
+    document.getElementById('subtotal').textContent = `${currency} ${subtotal.toFixed(2)}`;
+    document.getElementById('tax-amount').textContent = `${currency} ${taxAmount.toFixed(2)}`;
+    document.getElementById('total').innerHTML = `<strong>${currency} ${total.toFixed(2)}</strong>`;
+}
+
+// Form submission
+document.getElementById('estimate-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Validate client selection
+    const clientId = document.getElementById('client-id').value;
+    const clientSearch = document.getElementById('client-search');
+    
+    if (!clientId) {
+        clientSearch.classList.add('is-invalid');
+        FOSSBilling.message('{{ 'Please select a client'|trans }}', 'error');
+        return;
+    }
+    
+    const formData = new FormData(this);
+    const data = {};
+    
+    // Convert form data to object
+    for (let [key, value] of formData.entries()) {
+        if (key.includes('[')) {
+            // Handle array fields (items)
+            const matches = key.match(/(\w+)\[(\d+)\]\[(\w+)\]/);
+            if (matches) {
+                const [, arrayName, index, fieldName] = matches;
+                if (!data[arrayName]) data[arrayName] = [];
+                if (!data[arrayName][index]) data[arrayName][index] = {};
+                data[arrayName][index][fieldName] = value;
+            }
+        } else {
+            data[key] = value;
+        }
+    }
+
+    // Filter out empty items
+    if (data.items) {
+        data.items = data.items.filter(item => item.title && item.quantity && item.price);
+    }
+
+    const endpoint = data.id ? 'estimate/update' : 'estimate/create';
+
+    API.admin.post(endpoint, data, function(result) {
+        FOSSBilling.message('{{ 'Estimate saved successfully!'|trans }}', 'success');
+        window.location.href = '{{ 'estimate'|alink }}';
+    }, function(result) {
+        FOSSBilling.message(result.message, 'error');
+    });
+});
+
+// Initialize everything when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Load clients data first
+    loadClientsData();
+    
+    // Initialize client search
+    initClientSearch();
+    
+    // Add event listeners for real-time calculation
+    const inputs = document.querySelectorAll('input[type="number"]');
+    inputs.forEach(input => {
+        input.addEventListener('input', calculateTotals);
+    });
+    
+    document.getElementById('currency').addEventListener('change', calculateTotals);
+    
+    // Initial calculation
+    calculateTotals();
+});
+</script>
+{% endblock %}

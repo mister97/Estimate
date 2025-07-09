@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Estimate {{ESTIMATE_NUMBER}}</title>
+    <style>
+        @page {
+            margin: 15mm;
+            size: A4 portrait;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 180mm;
+            margin: 0 auto;
+        }
+        
+        /* Header */
+        .header {
+            display: table;
+            width: 100%;
+            border-bottom: 3px solid #2c5aa0;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .company-info {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+            padding-right: 15px;
+        }
+        
+        .company-name {
+            font-size: 22px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 8px;
+        }
+        
+        .company-details {
+            font-size: 10px;
+            color: #666;
+            line-height: 1.3;
+        }
+        
+        .estimate-info {
+            display: table-cell;
+            width: 50%;
+            text-align: right;
+            vertical-align: top;
+            padding-left: 15px;
+        }
+        
+        .estimate-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 12px;
+        }
+        
+        .estimate-details div {
+            margin-bottom: 4px;
+            font-size: 11px;
+        }
+        
+        /* Client Info */
+        .client-section {
+            background: #f8f9fa;
+            padding: 18px;
+            margin: 20px 0;
+            border-left: 4px solid #2c5aa0;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .client-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 10px;
+        }
+        
+        .client-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        
+        /* Project Title */
+        .project-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin: 25px 0 20px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        /* Items Table */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 10px;
+        }
+        
+        .items-table th {
+            background: #2c5aa0;
+            color: white;
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: bold;
+            font-size: 10px;
+        }
+        
+        .items-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #dee2e6;
+            vertical-align: top;
+            line-height: 1.3;
+        }
+        
+        .items-table tbody tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .item-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 3px;
+        }
+        
+        .item-description {
+            font-size: 9px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        
+        /* Totals Section */
+        .totals-section {
+            margin-top: 25px;
+            display: table;
+            width: 100%;
+        }
+        
+        .totals-spacer {
+            display: table-cell;
+            width: 58%;
+        }
+        
+        .totals-table {
+            display: table-cell;
+            width: 42%;
+        }
+        
+        .totals {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        
+        .totals td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .totals .subtotal-row td {
+            border-bottom: 2px solid #ccc;
+            background: #f8f9fa;
+        }
+        
+        .totals .total-row {
+            background: #2c5aa0;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .totals .total-row td {
+            border: none;
+            padding: 12px;
+        }
+        
+        /* Notes Section */
+        .notes-section {
+            margin-top: 30px;
+            padding: 18px;
+            background: #f8f9fa;
+            border-left: 4px solid #2c5aa0;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .notes-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 10px;
+        }
+        
+        .notes-content {
+            font-size: 10px;
+            line-height: 1.5;
+            color: #555;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #dee2e6;
+            font-size: 9px;
+            color: #888;
+            text-align: center;
+            line-height: 1.4;
+        }
+        
+        .footer-highlight {
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 6px;
+        }
+        
+        .currency {
+            font-weight: bold;
+        }
+        
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <div class="company-info">
+                <div class="company-name">{{COMPANY_NAME}}</div>
+                <div class="company-details">
+                    {{COMPANY_ADDRESS}}<br>
+                    {{COMPANY_PHONE}}<br>
+                    {{COMPANY_EMAIL}}
+                </div>
+            </div>
+            <div class="estimate-info">
+                <div class="estimate-title">ESTIMATE</div>
+                <div class="estimate-details">
+                    <div><strong>Number:</strong> {{ESTIMATE_NUMBER}}</div>
+                    <div><strong>Date:</strong> {{ESTIMATE_DATE}}</div>
+                    <div><strong>Valid Until:</strong> <span class="highlight">{{ESTIMATE_VALID_UNTIL}}</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Client Information -->
+        <div class="client-section">
+            <div class="client-title">Bill To:</div>
+            <div class="client-name">{{CLIENT_NAME}}</div>
+            {{CLIENT_COMPANY}}
+            {{CLIENT_ADDRESS}}
+            {{CLIENT_PHONE}}
+            <div>{{CLIENT_EMAIL}}</div>
+        </div>
+        
+        <!-- Project Title -->
+        <div class="project-title">{{PROJECT_TITLE}}</div>
+        
+        <!-- Items Table -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 35%;">Item</th>
+                    <th style="width: 30%;">Description</th>
+                    <th style="width: 10%;" class="text-center">Qty</th>
+                    <th style="width: 12%;" class="text-right">Unit Price</th>
+                    <th style="width: 13%;" class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ITEMS_HTML}}
+            </tbody>
+        </table>
+        
+        <!-- Totals Section -->
+        <div class="totals-section">
+            <div class="totals-spacer"></div>
+            <div class="totals-table">
+                <table class="totals">
+                    <tr class="subtotal-row">
+                        <td><strong>Subtotal:</strong></td>
+                        <td class="text-right"><span class="currency">{{SUBTOTAL}}</span></td>
+                    </tr>
+                    {{TAX_ROW}}
+                    <tr class="total-row">
+                        <td><strong>TOTAL:</strong></td>
+                        <td class="text-right"><strong>{{TOTAL}}</strong></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Notes Section -->
+        {{NOTES_SECTION}}
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-highlight">Thank you for your business!</div>
+            <div>This estimate is valid until {{ESTIMATE_VALID_UNTIL}}</div>
+            <div>Generated on {{CURRENT_DATE}}</div>
+        </div>
+    </div>
+</body>
+</html>
