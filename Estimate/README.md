@@ -25,10 +25,7 @@ A comprehensive estimate/quote management system for FOSSBilling that allows you
 
 ### Dependencies
 
-For PDF generation, install Dompdf via Composer (pre-installed):
-```bash
-composer require dompdf/dompdf
-```
+This module uses FOSSBilling's built-in Dompdf library for PDF generation. No additional installation required.
 
 ## Usage
 

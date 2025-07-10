@@ -574,20 +574,25 @@ class Service
         if (!class_exists('Dompdf\Dompdf')) {
             // Try to load via composer autoload
             $autoloadPaths = [
+                // FOSSBilling root vendor directory
                 __DIR__ . '/../../vendor/autoload.php',
+                // Alternative paths in case of different FOSSBilling structures
                 __DIR__ . '/../../../vendor/autoload.php',
-                __DIR__ . '/../../../../vendor/autoload.php',
-                $_SERVER['DOCUMENT_ROOT'] . '/vendor/autoload.php'
+                $_SERVER['DOCUMENT_ROOT'] . '/vendor/autoload.php',
+                // Fallback to common locations
+                dirname($_SERVER['SCRIPT_FILENAME']) . '/vendor/autoload.php'
             ];
 
+            $autoloadFound = false;
             foreach ($autoloadPaths as $autoload) {
                 if (file_exists($autoload)) {
                     require_once $autoload;
+                    $autoloadFound = true;
                     break;
                 }
             }
 
-            if (!class_exists('Dompdf\Dompdf')) {
+            if (!$autoloadFound || !class_exists('Dompdf\Dompdf')) {
                 throw new \FOSSBilling\InformationException('Dompdf not installed. Run: composer require dompdf/dompdf');
             }
         }
