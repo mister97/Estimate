@@ -150,10 +150,9 @@ For issues and feature requests:
 
 ## Technical Requirements
 
-- FOSSBilling 0.6.0 or higher
-- PHP 7.4 or higher
+- FOSSBilling 0.7.x or higher
+- PHP 8.2 - 8.4 or higher
 - MySQL/MariaDB database
-- Composer (for PDF generation)
 
 ## Licensing
 
