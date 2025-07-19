@@ -107,6 +107,14 @@
 
             <div class="mb-3">
                 <label class="form-label">{{ 'Items'|trans }} <span class="text-danger">*</span></label>
+                <div class="d-flex gap-2 mb-3">
+                    <button type="button" class="btn btn-outline-primary" onclick="addItem()">
+                        <i class="fas fa-plus"></i> {{ 'Add Custom Item'|trans }}
+                    </button>
+                    <button type="button" class="btn btn-outline-success" onclick="showProductModal()">
+                        <i class="fas fa-box"></i> {{ 'Add Product/Service'|trans }}
+                    </button>
+                </div>
                 <div id="items-container">
                     {% if estimate.items %}
                         {% for item in estimate.items %}
@@ -116,6 +124,7 @@
                                     <div class="col-md-6">
                                         <label class="form-label">{{ 'Title'|trans }}</label>
                                         <input type="text" name="items[{{ loop.index0 }}][title]" class="form-control" value="{{ item.title }}" required>
+                                        <input type="hidden" name="items[{{ loop.index0 }}][product_id]" value="{{ item.product_id }}">
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">{{ 'Description'|trans }}</label>
@@ -151,6 +160,7 @@
                                     <div class="col-md-6">
                                         <label class="form-label">{{ 'Title'|trans }}</label>
                                         <input type="text" name="items[0][title]" class="form-control" required>
+                                        <input type="hidden" name="items[0][product_id]" value="">
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">{{ 'Description'|trans }}</label>
@@ -180,9 +190,6 @@
                         </div>
                     {% endif %}
                 </div>
-                <button type="button" class="btn btn-outline-primary" onclick="addItem()">
-                    <i class="fas fa-plus"></i> {{ 'Add Item'|trans }}
-                </button>
             </div>
 
             <div class="mb-3">
@@ -228,10 +235,34 @@
     </div>
 </div>
 
+<!-- Product Selection Modal -->
+<div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productModalLabel">{{ 'Select Products/Services'|trans }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" id="productSearch" class="form-control" placeholder="{{ 'Search products...'|trans }}">
+                </div>
+                <div id="productList" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Products will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'Close'|trans }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let itemIndex = {{ estimate.items|length > 0 ? estimate.items|length : 1 }};
 let clientSearchTimeout;
 let allClients = [];
+let allProducts = [];
 
 // Load clients data from the embedded JSON
 function loadClientsData() {
@@ -394,6 +425,7 @@ function addItem() {
                 <div class="col-md-6">
                     <label class="form-label">{{ 'Title'|trans }}</label>
                     <input type="text" name="items[${itemIndex}][title]" class="form-control" required>
+                    <input type="hidden" name="items[${itemIndex}][product_id]" value="">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">{{ 'Description'|trans }}</label>
@@ -532,6 +564,118 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial calculation
     calculateTotals();
+});
+
+// Product selection functions
+function showProductModal() {
+    const modal = new bootstrap.Modal(document.getElementById('productModal'));
+    loadProducts();
+    modal.show();
+}
+
+function loadProducts() {
+    API.admin.post('estimate/get_products', {}, function(result) {
+        allProducts = result.list;
+        displayProducts(allProducts);
+    }, function(error) {
+        FOSSBilling.message('Failed to load products: ' + error.message, 'error');
+    });
+}
+
+function displayProducts(products) {
+    const productList = document.getElementById('productList');
+    productList.innerHTML = '';
+    
+    if (products.length === 0) {
+        productList.innerHTML = '<div class="alert alert-info">{{ 'No products available'|trans }}</div>';
+        return;
+    }
+    
+    products.forEach(product => {
+        const item = document.createElement('div');
+        item.className = 'list-group-item list-group-item-action';
+        item.innerHTML = `
+            <div class="d-flex w-100 justify-content-between">
+                <div>
+                    <h6 class="mb-1">${product.title}</h6>
+                    <p class="mb-1 text-muted">${product.description || ''}</p>
+                </div>
+                <div class="text-end">
+                    <p class="mb-0"><strong>${product.currency} ${product.price.toFixed(2)}</strong></p>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="addProductToEstimate(${JSON.stringify(product).replace(/"/g, '&quot;')})">
+                        <i class="fas fa-plus"></i> {{ 'Add'|trans }}
+                    </button>
+                </div>
+            </div>
+        `;
+        productList.appendChild(item);
+    });
+}
+
+function addProductToEstimate(product) {
+    const container = document.getElementById('items-container');
+    const itemRow = document.createElement('div');
+    itemRow.className = 'item-row card mb-3';
+    
+    itemRow.innerHTML = `
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">{{ 'Title'|trans }}</label>
+                    <input type="text" name="items[${itemIndex}][title]" class="form-control" value="${product.title}" required>
+                    <input type="hidden" name="items[${itemIndex}][product_id]" value="${product.id}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">{{ 'Description'|trans }}</label>
+                    <input type="text" name="items[${itemIndex}][description]" class="form-control" value="${product.description || ''}">
+                </div>
+            </div>
+            <div class="row align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">{{ 'Quantity'|trans }}</label>
+                    <input type="number" name="items[${itemIndex}][quantity]" class="form-control" value="1" step="0.01" min="0.01" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{{ 'Price'|trans }}</label>
+                    <input type="number" name="items[${itemIndex}][price]" class="form-control" value="${product.price}" step="0.01" min="0" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{{ 'Total'|trans }}</label>
+                    <input type="number" class="form-control item-total" readonly>
+                </div>
+                <div class="col-md-3">
+                    <button type="button" class="btn btn-danger" onclick="removeItem(this)">
+                        <i class="fas fa-trash"></i> {{ 'Remove'|trans }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(itemRow);
+    itemIndex++;
+    
+    // Add event listeners for calculation
+    const inputs = itemRow.querySelectorAll('input[type="number"]');
+    inputs.forEach(input => {
+        input.addEventListener('input', calculateTotals);
+    });
+    
+    // Recalculate totals
+    calculateTotals();
+    
+    // Close modal
+    bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
+}
+
+// Product search functionality
+document.getElementById('productSearch').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const filtered = allProducts.filter(product => 
+        product.title.toLowerCase().includes(searchTerm) ||
+        (product.description && product.description.toLowerCase().includes(searchTerm))
+    );
+    displayProducts(filtered);
 });
 </script>
 {% endblock %}

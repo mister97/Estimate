@@ -198,4 +198,18 @@ class Admin extends \Api_Abstract
         $service = $this->di['mod_service']('Estimate');
         return $service->generatePdf($data['id']);
     }
+
+    /**
+     * Get products for estimate items
+     */
+    public function get_products($data): array
+    {
+        $staff_service = $this->di['mod_service']('Staff');
+        if (!$staff_service->hasPermission(null, 'estimate', 'manage_estimates')) {
+            throw new \FOSSBilling\InformationException('You do not have permission to view products', [], 403);
+        }
+
+        $service = $this->di['mod_service']('Estimate');
+        return $service->getProductsForEstimate($data);
+    }
 }

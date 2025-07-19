@@ -53,6 +53,7 @@ class Service
         CREATE TABLE IF NOT EXISTS `estimate_item` (
             `id` int(11) NOT NULL AUTO_INCREMENT,
             `estimate_id` int(11) NOT NULL,
+            `product_id` int(11) DEFAULT NULL,
             `title` varchar(255) NOT NULL,
             `description` text,
             `quantity` decimal(10,2) NOT NULL DEFAULT '1.00',
@@ -60,6 +61,7 @@ class Service
             `total` decimal(10,2) NOT NULL DEFAULT '0.00',
             PRIMARY KEY (`id`),
             KEY `estimate_id` (`estimate_id`),
+            KEY `product_id` (`product_id`),
             CONSTRAINT `estimate_item_ibfk_1` FOREIGN KEY (`estimate_id`) REFERENCES `estimate` (`id`) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
         ";
@@ -142,6 +144,7 @@ class Service
         foreach ($items as $item) {
             $itemsArray[] = [
                 'id' => $item->id,
+                'product_id' => $item->product_id,
                 'title' => $item->title,
                 'description' => $item->description,
                 'quantity' => $item->quantity,
@@ -831,6 +834,7 @@ class Service
         foreach ($items as $itemData) {
             $item = $this->di['db']->dispense('estimate_item');
             $item->estimate_id = $estimate_id;
+            $item->product_id = $itemData['product_id'] ?? null;
             $item->title = $itemData['title'];
             $item->description = $itemData['description'] ?? '';
             $item->quantity = $itemData['quantity'];
@@ -862,5 +866,58 @@ class Service
     private function generateInvoiceHash(): string
     {
         return md5(uniqid(rand(), true));
+    }
+
+    /**
+     * Get products for estimate selection
+     */
+    public function getProductsForEstimate($data): array
+    {
+        $sql = "SELECT p.id, p.title, p.description, p.unit, p.type, 
+                pp.type as payment_type, pp.once_price, pp.m_price, pp.q_price, pp.b_price, pp.a_price
+                FROM product p
+                LEFT JOIN product_payment pp ON p.product_payment_id = pp.id
+                WHERE p.status = 'enabled' AND p.hidden = 0 AND p.active = 1
+                ORDER BY p.priority DESC, p.title ASC";
+
+        $products = $this->di['db']->getAll($sql);
+        
+        // Get default currency from settings
+        $defaultCurrency = $this->getSystemSetting('currency') ?? 'USD';
+        
+        $result = [];
+        foreach ($products as $product) {
+            // Determine the default price to show (prefer one-time price, then monthly)
+            $price = 0;
+            if ($product['payment_type'] == 'once' || $product['payment_type'] == 'free') {
+                $price = $product['once_price'] ?? 0;
+            } else if ($product['payment_type'] == 'recurrent') {
+                // Show monthly price as default for recurring products
+                $price = $product['m_price'] ?? 0;
+            }
+            
+            $result[] = [
+                'id' => $product['id'],
+                'title' => $product['title'],
+                'description' => $product['description'],
+                'unit' => $product['unit'] ?? 'product',
+                'type' => $product['type'],
+                'payment_type' => $product['payment_type'],
+                'price' => (float)$price,
+                'currency' => $defaultCurrency,
+                'prices' => [
+                    'once' => (float)($product['once_price'] ?? 0),
+                    'monthly' => (float)($product['m_price'] ?? 0),
+                    'quarterly' => (float)($product['q_price'] ?? 0),
+                    'biannually' => (float)($product['b_price'] ?? 0),
+                    'annually' => (float)($product['a_price'] ?? 0)
+                ]
+            ];
+        }
+
+        return [
+            'list' => $result,
+            'total' => count($result)
+        ];
     }
 }
